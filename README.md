@@ -36,12 +36,14 @@ This is a Python-based application for visualizing syntax trees. It is designed 
 
 ## Project Structure
 ```
-Syntax_Tree_Diagram/
-├── app.py
-├── templates/
-├── venv/
+Syntax_Tree_Diagram
 ├── .gitignore
-└── README.md
+├── LICENSE
+├── README.md
+├── app.py
+├── requirements.txt
+├── templates
+│   └── index.html
 ```
 
 ## License
