@@ -14,8 +14,29 @@
              background-color: #fdfdfd;
              overflow-x: auto; /* Add horizontal scroll if needed */
         }
-        /* You might not need many custom styles as displaCy styles inline,
-           but you can override if necessary */
+        /* Style for the explanations list */
+        .explanations-list {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #f0f0f0;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+        .explanations-list ul {
+            list-style-type: none;
+            padding-left: 0;
+            margin: 0;
+        }
+         .explanations-list li {
+            margin-bottom: 5px;
+        }
+        .explanations-list strong {
+             display: inline-block;
+             width: 80px; /* Adjust width as needed */
+             font-weight: bold;
+             margin-right: 10px;
+        }
     </style>
 </head>
 <body>
@@ -34,7 +55,18 @@
         <div class="displacy-container">
             {{ dependency_html_output | safe }}
         </div>
-    {% endif %}
+
+        {% if explanations %}
+            <div class="explanations-list">
+                 <h3>Dependency Label Explanations:</h3>
+                 <ul>
+                     {% for dep_tag, description in explanations.items() %}
+                         <li><strong>{{ dep_tag }}:</strong> {{ description }}</li>
+                     {% endfor %}
+                 </ul>
+             </div>
+        {% endif %}
+        {% endif %}
 
 </body>
 </html>
