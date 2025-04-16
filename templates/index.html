@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Syntax Tree Viewer (spaCy)</title>
+    <style>
+        body { font-family: sans-serif; margin: 20px; line-height: 1.6; }
+        .error { color: red; font-weight: bold; }
+        .displacy-container {
+             margin-top: 20px;
+             border: 1px solid #ddd;
+             padding: 15px;
+             border-radius: 5px;
+             background-color: #fdfdfd;
+             overflow-x: auto; /* Add horizontal scroll if needed */
+        }
+        /* You might not need many custom styles as displaCy styles inline,
+           but you can override if necessary */
+    </style>
+</head>
+<body>
+    <h1>Enter a Sentence for Dependency Parsing</h1>
+    <form method="post">
+        <input type="text" name="sentence" size="60" value="{{ input_sentence or '' }}">
+        <input type="submit" value="Parse Sentence">
+    </form>
+
+    {% if error %}
+        <p class="error">{{ error }}</p>
+    {% endif %}
+
+    {% if dependency_html_output %}
+        <h2>Dependency Parse:</h2>
+        <div class="displacy-container">
+            {{ dependency_html_output | safe }}
+        </div>
+    {% endif %}
+
+</body>
+</html>
