@@ -179,6 +179,11 @@
         <p class="error">{{ error }}</p>
     {% endif %}
 
+    {% if bracketed_parse %}
+        <h2>Bracketed Parse</h2>
+        <pre style="background:#f4f4f4; padding:10px; border-radius:6px; border:1px solid #e0e0e0; font-family:monospace; white-space:pre-wrap;">{{ bracketed_parse }}</pre>
+    {% endif %}
+
     {% if dependency_html_output %}
         <h2>Dependency Parse</h2>
         <div class="displacy-container">
