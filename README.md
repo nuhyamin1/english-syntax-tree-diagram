@@ -1,6 +1,6 @@
 # Syntax Tree Diagram App
 
-This is a Python-based application for visualizing syntax trees. It is designed to help users parse and display syntactic structures, typically for natural language processing or educational purposes.
+This is a Python-based application for visualizing syntax trees. It is designed to help users parse and display syntactic structures, typically for natural language processing, linguistics or educational purposes.
 
 ## Features
 - Parse input text and generate syntax trees
