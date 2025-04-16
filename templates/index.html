@@ -2,47 +2,176 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Syntax Tree Viewer (spaCy)</title>
     <style>
-        body { font-family: sans-serif; margin: 20px; line-height: 1.6; }
-        .error { color: red; font-weight: bold; }
-        .displacy-container {
-             margin-top: 20px;
-             border: 1px solid #ddd;
-             padding: 15px;
-             border-radius: 5px;
-             background-color: #fdfdfd;
-             overflow-x: auto; /* Add horizontal scroll if needed */
+        :root {
+            --primary-color: #3498db;
+            --secondary-color: #2c3e50;
+            --background-color: #f9f9f9;
+            --border-color: #e0e0e0;
+            --success-color: #2ecc71;
+            --error-color: #e74c3c;
+            --box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
-        /* Style for the explanations list */
-        .explanations-list {
+        
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            line-height: 1.6;
+            background-color: var(--background-color);
+            color: #333;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        h1, h2, h3 {
+            color: var(--secondary-color);
             margin-top: 20px;
-            padding: 10px;
-            background-color: #f0f0f0;
-            border: 1px solid #e0e0e0;
-            border-radius: 4px;
-            font-size: 0.9em;
+            margin-bottom: 15px;
         }
+        
+        h1 {
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 10px;
+            font-size: 28px;
+        }
+        
+        form {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: var(--box-shadow);
+            margin-bottom: 25px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        input[type="text"] {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-size: 16px;
+            min-width: 300px;
+            transition: border-color 0.3s;
+        }
+        
+        input[type="text"]:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+        }
+        
+        input[type="submit"] {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+        
+        input[type="submit"]:hover {
+            background-color: #2980b9;
+        }
+        
+        .error { 
+            color: var(--error-color);
+            font-weight: bold;
+            padding: 10px;
+            background-color: rgba(231, 76, 60, 0.1);
+            border-radius: 4px;
+            margin: 15px 0;
+        }
+        
+        .displacy-container {
+            margin-top: 20px;
+            border: 1px solid var(--border-color);
+            padding: 25px 15px;
+            border-radius: 8px;
+            background-color: white;
+            overflow-x: auto;
+            box-shadow: var(--box-shadow);
+        }
+        
+        .explanations-list {
+            margin-top: 25px;
+            padding: 20px;
+            background-color: white;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 0.95em;
+            box-shadow: var(--box-shadow);
+        }
+        
+        .explanations-list h3 {
+            margin-top: 0;
+            color: var(--primary-color);
+            font-size: 20px;
+        }
+        
         .explanations-list ul {
             list-style-type: none;
             padding-left: 0;
             margin: 0;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 10px;
         }
-         .explanations-list li {
-            margin-bottom: 5px;
+        
+        .explanations-list li {
+            margin-bottom: 8px;
+            padding: 6px 10px;
+            border-radius: 4px;
+            background-color: #f8f9fa;
+            transition: background-color 0.2s;
         }
+        
+        .explanations-list li:hover {
+            background-color: #edf2f7;
+        }
+        
         .explanations-list strong {
-             display: inline-block;
-             width: 80px; /* Adjust width as needed */
-             font-weight: bold;
-             margin-right: 10px;
+            display: inline-block;
+            min-width: 60px;
+            font-weight: bold;
+            margin-right: 10px;
+            color: var(--secondary-color);
+        }
+        
+        @media (max-width: 768px) {
+            .explanations-list ul {
+                grid-template-columns: 1fr;
+            }
+            
+            input[type="text"] {
+                min-width: 100%;
+            }
+            
+            form {
+                flex-direction: column;
+                align-items: stretch;
+            }
+        }
+        
+        /* Optional: Style for the dependency visualization */
+        svg text {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
         }
     </style>
 </head>
 <body>
-    <h1>Enter a Sentence for Dependency Parsing</h1>
+    <h1>Syntax Tree Viewer (spaCy)</h1>
+    <p>Enter a sentence below to generate its dependency parse tree and visualization.</p>
+    
     <form method="post">
-        <input type="text" name="sentence" size="60" value="{{ input_sentence or '' }}">
+        <input type="text" name="sentence" size="60" placeholder="Type your sentence here..." value="{{ input_sentence or '' }}">
         <input type="submit" value="Parse Sentence">
     </form>
 
@@ -51,22 +180,22 @@
     {% endif %}
 
     {% if dependency_html_output %}
-        <h2>Dependency Parse:</h2>
+        <h2>Dependency Parse</h2>
         <div class="displacy-container">
             {{ dependency_html_output | safe }}
         </div>
 
         {% if explanations %}
             <div class="explanations-list">
-                 <h3>Dependency Label Explanations:</h3>
+                 <h3>Dependency Label Explanations</h3>
                  <ul>
                      {% for dep_tag, description in explanations.items() %}
-                         <li><strong>{{ dep_tag }}:</strong> {{ description }}</li>
+                         <li><strong>{{ dep_tag }}</strong> {{ description }}</li>
                      {% endfor %}
                  </ul>
              </div>
         {% endif %}
-        {% endif %}
+    {% endif %}
 
 </body>
 </html>
