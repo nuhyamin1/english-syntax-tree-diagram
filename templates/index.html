@@ -4,7 +4,47 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Syntax Tree Viewer (spaCy)</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script> <!-- Include D3.js -->
     <style>
+        /* Remove old tree styles */
+        /* .tree-node { ... } */
+        /* .tree-node .node-label { ... } */
+        /* .tree-node .node-text { ... } */
+        /* .tree-children { ... } */
+        /* #constituency-tree-container > .tree-node { ... } */
+        /* .tree-node::before { ... } */
+        /* .tree-node:first-child::before { ... } */
+        /* .tree-node:last-child::before { ... } */
+        /* #constituency-tree-container > .tree-node::before { ... } */
+
+        /* D3 Tree Styles */
+        .node circle {
+            fill: #fff;
+            stroke: steelblue;
+            stroke-width: 3px;
+        }
+
+        .node text {
+            font: 12px sans-serif;
+        }
+
+        .node .label {
+            fill: #007bff; /* Blue label */
+            font-weight: bold;
+        }
+
+        .node .text {
+            fill: #28a745; /* Green text */
+            font-style: italic;
+        }
+
+        .link {
+            fill: none;
+            stroke: #ccc;
+            stroke-width: 2px;
+        }
+
+        /* General Styles (Keep the rest) */
         :root {
             --primary-color: #3498db;
             --secondary-color: #2c3e50;
@@ -189,6 +229,18 @@
         svg text {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
         }
+
+        /* Style for the D3 tree container */
+        #constituency-tree-container {
+            margin-top: 20px;
+            border: 1px solid var(--border-color);
+            padding: 15px;
+            border-radius: 8px;
+            background-color: white;
+            overflow: auto; /* Enable scrolling if tree is large */
+            box-shadow: var(--box-shadow);
+            min-height: 300px; /* Ensure some height */
+        }
     </style>
 </head>
 <body>
@@ -236,10 +288,97 @@
         {% endif %}
     {% endif %}
 
-    {# Conditionally display Constituency Parse #}
+    {# Conditionally display Constituency Parse String #}
     {% if constituency_parse_string and selected_parse_type == 'constituency' %}
         <h2>Constituency Parse (benepar)</h2>
         <pre class="parse-output">{{ constituency_parse_string }}</pre>
+
+        {# Conditionally display Constituency Parse Tree #}
+        {% if constituency_tree_json %}
+            <h3>Constituency Tree Visualization</h3>
+            <!-- Container for D3 Tree -->
+            <div id="constituency-tree-container">
+                <svg id="d3-tree-svg"></svg> <!-- SVG element for D3 -->
+            </div>
+            <script>
+                const treeData = {{ constituency_tree_json | tojson }};
+
+                function renderD3Tree(data) {
+                    const container = d3.select("#constituency-tree-container");
+                    const svgElement = d3.select("#d3-tree-svg");
+                    svgElement.selectAll("*").remove(); // Clear previous tree
+
+                    if (!data || !container.node()) return;
+
+                    const width = container.node().getBoundingClientRect().width - 40; // Adjust for padding
+                    let nodeHeight = 50; // Vertical distance between nodes
+                    let nodeWidth = 100; // Horizontal distance (adjust based on label length later)
+
+                    // Compute the new tree layout.
+                    const root = d3.hierarchy(data, d => d.children);
+                    const treeLayout = d3.tree(); // Use d3.tree for top-down layout
+
+                    // Dynamically calculate height based on tree depth
+                    let maxDepth = 0;
+                    root.each(d => { if (d.depth > maxDepth) maxDepth = d.depth; });
+                    const height = (maxDepth + 1) * nodeHeight;
+
+                    treeLayout.size([width, height]); // Width first for horizontal spread
+                    treeLayout(root);
+
+                    // Adjust SVG size
+                    svgElement.attr("width", width + 40) // Add margin back
+                              .attr("height", height + 40);
+
+                    const g = svgElement.append("g")
+                                      .attr("transform", "translate(20,20)"); // Add margin
+
+                    // Add links (paths)
+                    const link = g.selectAll(".link")
+                        .data(root.links())
+                        .enter().append("path")
+                        .attr("class", "link")
+                        .attr("d", d3.linkVertical() // Use vertical links
+                            .x(d => d.x)
+                            .y(d => d.y));
+
+                    // Add nodes (groups with circle and text)
+                    const node = g.selectAll(".node")
+                        .data(root.descendants())
+                        .enter().append("g")
+                        .attr("class", d => "node" + (d.children ? " node--internal" : " node--leaf"))
+                        .attr("transform", d => `translate(${d.x},${d.y})`);
+
+                    node.append("circle")
+                        .attr("r", 5);
+
+                    // Add Label (POS tag)
+                    node.append("text")
+                        .attr("dy", "-0.8em") // Position above the node
+                        .attr("text-anchor", "middle")
+                        .attr("class", "label")
+                        .text(d => d.data.label);
+
+                    // Add Text (Word)
+                    node.filter(d => d.data.text) // Only add text if it exists
+                        .append("text")
+                        .attr("dy", "1.8em") // Position below the node
+                        .attr("text-anchor", "middle")
+                        .attr("class", "text")
+                        .text(d => d.data.text);
+
+                    // Adjust horizontal spacing based on max label/text width (optional refinement)
+                    // This part can be complex; keeping it simpler for now.
+                }
+
+                // Initial render
+                if (treeData) {
+                    renderD3Tree(treeData);
+                    // Optional: Re-render on window resize
+                    window.addEventListener('resize', () => renderD3Tree(treeData));
+                }
+            </script>
+        {% endif %}
     {% endif %}
 
 </body>

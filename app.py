@@ -1,8 +1,9 @@
 # app.py
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, jsonify
 import spacy
 from spacy import displacy
 import benepar  # Import benepar
+import nltk # Import NLTK for tree parsing
 
 # Load the spaCy model (ensure this happens only once)
 try:
@@ -73,7 +74,8 @@ def build_bracketed_string(token):
 @app.route('/', methods=['GET', 'POST'])
 def index():
     dependency_html_output = None
-    constituency_parse_string = None # For benepar output
+    constituency_parse_string = None # For benepar raw string output
+    constituency_tree_json = None # For benepar JSON tree output
     explanations = None # Initialize explanations dictionary
     error_message = None
     sentence = ""
@@ -110,9 +112,19 @@ def index():
                     if 'benepar' in nlp.pipe_names:
                         sent = list(doc.sents)[0] # Get the first sentence
                         constituency_parse_string = sent._.parse_string
+                        # --- Convert constituency string to NLTK Tree and then to JSON ---
+                        try:
+                            nltk_tree = nltk.Tree.fromstring(constituency_parse_string)
+                            constituency_tree_json = tree_to_json(nltk_tree)
+                        except Exception as tree_e:
+                            error_message = f"Error parsing constituency tree: {tree_e}"
+                            print(f"Error parsing tree '{constituency_parse_string}': {tree_e}")
+                            constituency_tree_json = None # Ensure it's None on error
+                        # --- End Tree Conversion ---
                     else:
                         error_message = "Constituency parsing component (benepar) not loaded correctly."
                         constituency_parse_string = "Error: benepar not available."
+                        constituency_tree_json = None
                 # --- End Output Generation ---
 
             except Exception as e:
@@ -124,11 +136,31 @@ def index():
 
     return render_template('index.html',
                            dependency_html_output=dependency_html_output,
-                           constituency_parse_string=constituency_parse_string, # Pass constituency string
+                           constituency_parse_string=constituency_parse_string, # Pass raw string
+                           constituency_tree_json=constituency_tree_json, # Pass JSON tree
                            explanations=explanations,
                            error=error_message,
                            input_sentence=sentence,
                            selected_parse_type=parse_type) # Pass selected type
+
+# --- Function to convert NLTK Tree to JSON --- 
+def tree_to_json(tree):
+    """Converts an NLTK Tree object to a JSON-serializable dictionary."""
+    if isinstance(tree, str):
+        # This case might happen for leaf nodes if not handled carefully
+        # Depending on how fromstring parses, might need adjustment
+        return tree # Or handle as needed, maybe {'label': 'TOKEN', 'text': tree}
+
+    node = {}
+    node['label'] = tree.label()
+    if len(tree) == 1 and isinstance(tree[0], str):
+        # Leaf node: (POS Text)
+        node['text'] = tree[0]
+    else:
+        # Internal node: (Label Child1 Child2 ...)
+        node['children'] = [tree_to_json(child) for child in tree]
+    return node
+# --- End NLTK Tree to JSON function ---
 
 if __name__ == '__main__':
     app.run(debug=True)
