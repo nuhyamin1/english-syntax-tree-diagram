@@ -40,6 +40,83 @@ except ValueError as e:
         # For now, we'll let the parsing attempt fail later if benepar isn't loaded.
         pass
 
+# --- Constituency Label Explanations (copied from app.py) ---
+CONSTITUENCY_LABELS = {
+    "S": "Simple declarative clause",
+    "SBAR": "Clause introduced by a subordinating conjunction",
+    "SBARQ": "Direct question introduced by a wh-word or wh-phrase",
+    "SINV": "Inverted declarative sentence",
+    "SQ": "Inverted yes/no question, or main clause of a wh-question",
+    "NP": "Noun Phrase",
+    "VP": "Verb Phrase",
+    "PP": "Prepositional Phrase",
+    "ADJP": "Adjective Phrase",
+    "ADVP": "Adverb Phrase",
+    "QP": "Quantifier Phrase (inside NP)",
+    "WHNP": "Wh-noun Phrase",
+    "WHPP": "Wh-prepositional Phrase",
+    "WHADVP": "Wh-adverb Phrase",
+    "PRN": "Parenthetical",
+    "FRAG": "Fragment",
+    "INTJ": "Interjection",
+    "LST": "List marker",
+    "UCP": "Unlike Coordinated Phrase",
+    "CONJP": "Conjunction Phrase",
+    "NX": "Used within certain complex NPs",
+    "X": "Unknown, uncertain, or unbracketable",
+    "ROOT": "Root of the tree (often implicit, added by some parsers)",
+    # --- Common POS Tags (Penn Treebank Style) ---
+    "CC": "Coordinating conjunction",
+    "CD": "Cardinal number",
+    "DT": "Determiner",
+    "EX": "Existential there",
+    "FW": "Foreign word",
+    "IN": "Preposition or subordinating conjunction",
+    "JJ": "Adjective",
+    "JJR": "Adjective, comparative",
+    "JJS": "Adjective, superlative",
+    "LS": "List item marker",
+    "MD": "Modal",
+    "NN": "Noun, singular or mass",
+    "NNS": "Noun, plural",
+    "NNP": "Proper noun, singular",
+    "NNPS": "Proper noun, plural",
+    "PDT": "Predeterminer",
+    "POS": "Possessive ending",
+    "PRP": "Personal pronoun",
+    "PRP$": "Possessive pronoun",
+    "RB": "Adverb",
+    "RBR": "Adverb, comparative",
+    "RBS": "Adverb, superlative",
+    "RP": "Particle",
+    "SYM": "Symbol",
+    "TO": "to",
+    "UH": "Interjection",
+    "VB": "Verb, base form",
+    "VBD": "Verb, past tense",
+    "VBG": "Verb, gerund or present participle",
+    "VBN": "Verb, past participle",
+    "VBP": "Verb, non-3rd person singular present",
+    "VBZ": "Verb, 3rd person singular present",
+    "WDT": "Wh-determiner",
+    "WP": "Wh-pronoun",
+    "WP$": "Possessive wh-pronoun",
+    "WRB": "Wh-adverb",
+    ".": "Punctuation, sentence end",
+    ",": "Punctuation, comma",
+    ":": "Punctuation, colon",
+    "(": "Punctuation, open parenthesis",
+    ")": "Punctuation, close parenthesis",
+    "\"": "Punctuation, quotation mark",
+    "`": "Punctuation, backtick",
+    "#": "Punctuation, hash",
+    "$": "Punctuation, dollar sign",
+    "''": "Punctuation, closing quotation mark",
+    "``": "Punctuation, opening quotation mark",
+}
+# --- End Constituency Label Explanations ---
+
+
 # --- Helper Functions (copied from app.py) ---
 def get_labels_from_tree(tree):
     """Recursively extracts all unique node labels from an NLTK Tree."""
@@ -53,17 +130,13 @@ def get_labels_from_tree(tree):
 def tree_to_json(tree):
     """Converts an NLTK Tree object to a JSON-serializable dictionary for D3."""
     if isinstance(tree, str):
-        # This case might happen for leaf nodes if not handled carefully
-        return tree # Or handle as needed, maybe {'label': 'TOKEN', 'text': tree}
-
+        return tree
     node = {}
     node['label'] = tree.label()
-    # Check if the node is a pre-terminal (POS tag) node
     is_preterminal = all(isinstance(child, str) for child in tree)
     if is_preterminal and len(tree) == 1:
-        node['text'] = tree[0] # Assign the word as text
+        node['text'] = tree[0]
     else:
-        # Internal node or terminal node with complex structure (shouldn't happen with standard benepar output)
         node['children'] = [tree_to_json(child) for child in tree]
     return node
 # --- End Helper Functions ---
@@ -96,88 +169,159 @@ class SyntaxTreeApp(QMainWindow):
         self.dependency_btn.clicked.connect(self.generate_dependency_parse)
         self.layout.addWidget(self.dependency_btn)
 
-        # Output display
+        # Output display (kept for errors)
         self.output_label = QLabel("Parse Output:")
         self.layout.addWidget(self.output_label)
         self.output_display = QTextEdit()
         self.output_display.setReadOnly(True)
+        # Hide initially, show only on error or if no web view content
+        self.output_display.setVisible(False)
         self.layout.addWidget(self.output_display)
 
-        # Web view for dependency parse visualization
+        # Web view for visualizations
         self.web_view = QWebEngineView()
-        self.web_view.setVisible(False)
+        self.web_view.setVisible(False) # Start hidden
         self.layout.addWidget(self.web_view)
+
+    def show_error(self, message):
+        """Helper to display errors in the text area."""
+        self.output_display.setText(message)
+        self.output_display.setVisible(True)
+        self.web_view.setVisible(False)
 
     def generate_constituency_parse(self):
         sentence = self.sentence_input.toPlainText().strip()
         if not sentence:
-            self.output_display.setText("Please enter a sentence.")
+            self.show_error("Please enter a sentence.")
             return
 
         try:
             # Process with SpaCy and Benepar
             if 'benepar' not in nlp.pipe_names:
-                 self.output_display.setText("Error: Benepar component not loaded. Cannot generate constituency parse.")
+                 self.show_error("Error: Benepar component not loaded. Cannot generate constituency parse.")
                  return
 
             doc = nlp(sentence)
             if not list(doc.sents):
-                 self.output_display.setText("Could not segment sentence.")
+                 self.show_error("Could not segment sentence.")
                  return
 
-            # Assuming one sentence for simplicity in the GUI
             sent = list(doc.sents)[0]
             constituency_parse_string = sent._.parse_string
 
             if not constituency_parse_string:
-                self.output_display.setText("No parse found by benepar.")
+                self.show_error("No parse found by benepar.")
                 return
 
             # --- Convert constituency string to NLTK Tree and then to JSON ---
             try:
                 nltk_tree = Tree.fromstring(constituency_parse_string)
                 constituency_tree_json = tree_to_json(nltk_tree)
-                json_data_string = json.dumps(constituency_tree_json) # Convert dict to JSON string
+                json_data_string = json.dumps(constituency_tree_json)
 
-                # --- Generate HTML for D3 Visualization ---
-                html_content = self.generate_d3_html(json_data_string)
+                # --- Get Constituency Explanations ---
+                unique_const_labels = get_labels_from_tree(nltk_tree)
+                constituency_explanations = {
+                    label: CONSTITUENCY_LABELS.get(label, "No description available.")
+                    for label in sorted(list(unique_const_labels))
+                    if label in CONSTITUENCY_LABELS
+                }
+
+                # --- Generate HTML for D3 Visualization with Legend ---
+                html_content = self.generate_constituency_html(json_data_string, constituency_explanations)
                 self.web_view.setHtml(html_content)
                 self.web_view.setVisible(True)
                 self.output_display.setVisible(False)
 
             except Exception as tree_e:
-                 self.output_display.setText(f"Error parsing/visualizing constituency tree: {tree_e}\n\nRaw parse:\n{constituency_parse_string}")
-                 self.web_view.setVisible(False)
-                 self.output_display.setVisible(True)
-            # --- End Tree Conversion and Visualization ---
+                 self.show_error(f"Error parsing/visualizing constituency tree: {tree_e}\n\nRaw parse:\n{constituency_parse_string}")
 
         except Exception as e:
-            self.output_display.setText(f"Error generating constituency parse: {str(e)}")
-            self.web_view.setVisible(False)
-            self.output_display.setVisible(True)
+            self.show_error(f"Error generating constituency parse: {str(e)}")
 
     def generate_dependency_parse(self):
         sentence = self.sentence_input.toPlainText().strip()
         if not sentence:
-            self.output_display.setText("Please enter a sentence.")
+            self.show_error("Please enter a sentence.")
             return
 
         try:
             # Process with SpaCy
             doc = nlp(sentence)
-            # Generate dependency parse visualization
-            html = displacy.render(doc, style="dep", options={"compact": True})
-            # Display in web view
-            self.web_view.setHtml(html)
+
+            # --- Get Dependency Explanations ---
+            unique_deps = sorted(list(set(token.dep_ for token in doc)))
+            dependency_explanations = {dep: spacy.explain(dep) for dep in unique_deps if spacy.explain(dep)}
+
+            # Generate dependency parse visualization SVG string
+            # Use page=False to get only the SVG part
+            options = {"compact": True, "bg": "#ffffff", "color": "#000000", "font": "Arial"}
+            svg = displacy.render(doc, style="dep", options=options, page=False)
+
+            # --- Generate HTML for Dependency Visualization with Legend ---
+            html_content = self.generate_dependency_html(svg, dependency_explanations)
+            self.web_view.setHtml(html_content)
             self.web_view.setVisible(True)
             self.output_display.setVisible(False)
-        except Exception as e:
-            self.output_display.setText(f"Error generating dependency parse: {str(e)}")
-            self.web_view.setVisible(False)
-            self.output_display.setVisible(True)
 
-    def generate_d3_html(self, json_data):
-        # D3 rendering script extracted from index.html
+        except Exception as e:
+            self.show_error(f"Error generating dependency parse: {str(e)}")
+
+    def generate_legend_html(self, explanations):
+        """Generates the HTML list for a legend."""
+        if not explanations:
+            return ""
+        items_html = "".join(f'<li><strong>{tag}:</strong> {desc}</li>'
+                             for tag, desc in explanations.items())
+        return f'''
+            <div class="explanations-list">
+                <h3>Legend</h3>
+                <ul>{items_html}</ul>
+            </div>
+        '''
+
+    def get_legend_css(self):
+        """Returns the CSS for the legend."""
+        return """
+            .explanations-list {
+                margin-top: 25px;
+                padding: 15px;
+                background-color: #f8f9fa;
+                border: 1px solid #e0e0e0;
+                border-radius: 6px;
+                font-size: 0.9em;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            }
+            .explanations-list h3 {
+                margin-top: 0;
+                margin-bottom: 10px;
+                color: #343a40;
+                font-size: 1.1em;
+                border-bottom: 1px solid #dee2e6;
+                padding-bottom: 5px;
+            }
+            .explanations-list ul {
+                list-style-type: none;
+                padding-left: 0;
+                margin: 0;
+                max-height: 200px; /* Limit height and make scrollable */
+                overflow-y: auto;
+            }
+            .explanations-list li {
+                margin-bottom: 6px;
+                padding: 4px 0;
+            }
+            .explanations-list strong {
+                display: inline-block;
+                min-width: 50px;
+                font-weight: bold;
+                margin-right: 8px;
+                color: #495057;
+            }
+        """
+
+    def generate_constituency_html(self, json_data, explanations):
+        """Generates HTML for D3 Constituency Tree + Legend."""
         d3_script = """
             function renderD3Tree(data) {
                 const container = d3.select("#constituency-tree-container");
@@ -185,114 +329,49 @@ class SyntaxTreeApp(QMainWindow):
                 svgElement.selectAll("*").remove(); // Clear previous tree
 
                 if (!data || !container.node()) return;
-
-                // --- Dynamic Width Calculation ---
-                // Get container width, subtract padding/margins
-                const availableWidth = container.node().getBoundingClientRect().width - 40; // e.g., 20px padding left/right
-
-                // --- Tree Layout Setup ---
+                const availableWidth = container.node().getBoundingClientRect().width - 40;
                 const root = d3.hierarchy(data, d => d.children);
                 const treeLayout = d3.tree();
-
-                // --- Dynamic Height Calculation ---
                 let maxDepth = 0;
-                let nodesPerDepth = {};
-                root.each(d => {
-                    if (d.depth > maxDepth) maxDepth = d.depth;
-                    nodesPerDepth[d.depth] = (nodesPerDepth[d.depth] || 0) + 1;
-                });
-
-                // Estimate height based on depth and node separation
-                const nodeHeightSeparation = 80; // Vertical distance between levels
+                root.each(d => { if (d.depth > maxDepth) maxDepth = d.depth; });
+                const nodeHeightSeparation = 80;
                 const estimatedHeight = (maxDepth + 1) * nodeHeightSeparation;
-
-                // --- Set Tree Size ---
-                // Use availableWidth for horizontal spread, estimatedHeight for vertical
                 treeLayout.size([availableWidth, estimatedHeight]);
-                treeLayout(root); // Calculate node positions (d.x, d.y)
-
-                // --- Adjust SVG Size ---
-                // Add margins back to width and height for padding inside SVG
-                svgElement.attr("width", availableWidth + 40)
-                          .attr("height", estimatedHeight + 40); // Add bottom margin
-
-                // --- Create SVG Group for Transformation ---
-                // Translate the group to account for top/left margins
-                const g = svgElement.append("g")
-                                  .attr("transform", "translate(20, 40)"); // Left margin 20, Top margin 40
-
-                // --- Draw Links (Edges) ---
-                const link = g.selectAll(".link")
-                    .data(root.links())
-                    .enter().append("path")
+                treeLayout(root);
+                svgElement.attr("width", availableWidth + 40).attr("height", estimatedHeight + 40);
+                const g = svgElement.append("g").attr("transform", "translate(20, 40)");
+                g.selectAll(".link").data(root.links()).enter().append("path")
                     .attr("class", "link")
-                    .attr("d", d3.linkVertical() // Use vertical layout links
-                        .x(d => d.x)
-                        .y(d => d.y));
-
-                // --- Draw Nodes (Groups containing circle and text) ---
-                const node = g.selectAll(".node")
-                    .data(root.descendants())
-                    .enter().append("g")
+                    .attr("d", d3.linkVertical().x(d => d.x).y(d => d.y));
+                const node = g.selectAll(".node").data(root.descendants()).enter().append("g")
                     .attr("class", d => "node" + (d.children ? " node--internal" : " node--leaf"))
-                    .attr("transform", d => `translate(${d.x},${d.y})`); // Position node group
-
-                // Add circle marker for each node
-                node.append("circle")
-                    .attr("r", 5);
-
-                // Add Label (POS tag or Phrase label)
-                node.append("text")
-                    .attr("dy", "-0.8em") // Position above the node circle
-                    .attr("text-anchor", "middle") // Center text horizontally
-                    .attr("class", "label")
-                    .text(d => d.data.label);
-
-                // Add Text (Word/Token) - only for leaf nodes that have text
-                node.filter(d => d.data.text)
-                    .append("text")
-                    .attr("dy", "1.8em") // Position below the node circle
-                    .attr("text-anchor", "middle") // Center text horizontally
-                    .attr("class", "text")
-                    .text(d => d.data.text);
+                    .attr("transform", d => `translate(${d.x},${d.y})`);
+                node.append("circle").attr("r", 5);
+                node.append("text").attr("dy", "-0.8em").attr("text-anchor", "middle").attr("class", "label").text(d => d.data.label);
+                node.filter(d => d.data.text).append("text").attr("dy", "1.8em").attr("text-anchor", "middle").attr("class", "text").text(d => d.data.text);
             }
         """
-
-        # CSS styles extracted from index.html
         css_styles = """
-            body { margin: 0; padding: 0; font-family: sans-serif; }
+            body { margin: 10px; padding: 0; font-family: sans-serif; background-color: #f0f0f0; }
             #constituency-tree-container {
                 padding: 20px;
-                overflow: auto; /* Enable scrolling if tree is large */
-                min-height: 300px; /* Ensure some height */
+                overflow: auto;
+                min-height: 300px;
+                background-color: white;
+                border: 1px solid #ccc;
+                border-radius: 4px;
+                margin-bottom: 15px; /* Space before legend */
             }
-            .node circle {
-                fill: #fff;
-                stroke: steelblue;
-                stroke-width: 2px; /* Adjusted from 3px */
-            }
-            .node text {
-                font: 11px sans-serif; /* Adjusted size */
-            }
-            .node .label {
-                fill: #007bff; /* Blue label */
-                font-weight: bold;
-            }
-            .node .text {
-                fill: #28a745; /* Green text */
-                font-style: italic;
-            }
-            .link {
-                fill: none;
-                stroke: #ccc;
-                stroke-width: 1.5px; /* Adjusted from 2px */
-            }
-            svg {
-                display: block; /* Prevent extra space below SVG */
-            }
-        """
+            .node circle { fill: #fff; stroke: steelblue; stroke-width: 2px; }
+            .node text { font: 11px sans-serif; }
+            .node .label { fill: #007bff; font-weight: bold; }
+            .node .text { fill: #28a745; font-style: italic; }
+            .link { fill: none; stroke: #ccc; stroke-width: 1.5px; }
+            svg { display: block; }
+        """ + self.get_legend_css() # Add legend CSS
 
-        # Combine into a full HTML document
+        legend_html = self.generate_legend_html(explanations)
+
         html = f'''
         <!DOCTYPE html>
         <html>
@@ -305,16 +384,47 @@ class SyntaxTreeApp(QMainWindow):
             <div id="constituency-tree-container">
                 <svg id="d3-tree-svg"></svg>
             </div>
+            {legend_html}
             <script>
                 const treeData = {json_data};
                 {d3_script}
-                // Initial render
-                if (treeData) {{
-                    renderD3Tree(treeData);
-                    // Optional: Re-render on window resize (might need adjustments in Qt context)
-                    // window.addEventListener('resize', () => renderD3Tree(treeData));
-                }}
+                if (treeData) {{ renderD3Tree(treeData); }}
             </script>
+        </body>
+        </html>
+        '''
+        return html
+
+    def generate_dependency_html(self, svg_content, explanations):
+        """Generates HTML for Dependency SVG + Legend."""
+        css_styles = """
+            body { margin: 10px; padding: 0; font-family: sans-serif; background-color: #f0f0f0; }
+            .displacy-container {
+                padding: 20px;
+                overflow: auto;
+                background-color: white;
+                border: 1px solid #ccc;
+                border-radius: 4px;
+                margin-bottom: 15px; /* Space before legend */
+            }
+            /* Add specific styles for displacy SVG if needed */
+            .displacy-container svg {{ display: block; }}
+        """ + self.get_legend_css() # Add legend CSS
+
+        legend_html = self.generate_legend_html(explanations)
+
+        html = f'''
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <style>{css_styles}</style>
+        </head>
+        <body>
+            <div class="displacy-container">
+                {svg_content}
+            </div>
+            {legend_html}
         </body>
         </html>
         '''
