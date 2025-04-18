@@ -244,7 +244,7 @@
     </style>
 </head>
 <body>
-    <h1>Syntax Tree Viewer (spaCy)</h1>
+    <h1>Syntax Tree Viewer</h1>
     <p>Enter a sentence and select the desired parse type.</p>
 
     <form method="post" style="flex-direction: column; align-items: flex-start;">
@@ -256,7 +256,7 @@
             </label>
             <label>
                 <input type="radio" name="parse_type" value="constituency" {% if selected_parse_type == 'constituency' %}checked{% endif %}>
-                Constituency Parse (benepar)
+                Constituency Parse
             </label>
         </div>
         <input type="submit" value="Parse Sentence" style="margin-top: 10px;">
@@ -272,13 +272,20 @@
     {# Conditionally display Dependency Parse #}
     {% if dependency_html_output and selected_parse_type == 'dependency' %}
         <h2>Dependency Parse</h2>
+
+        {# Display Dependency Bracketed String #}
+        {% if dependency_bracketed_string %}
+            <pre class="parse-output">{{ dependency_bracketed_string }}</pre>
+        {% endif %}
+
+        {# Display Displacy Visualization #}
+        <h3>Tree Diagram</h3>
         <div class="displacy-container">
             {{ dependency_html_output | safe }}
         </div>
 
         {% if dependency_explanations %} {# Use the correct variable name #}
             <div class="explanations-list">
-                 <h3>Dependency Label Explanations</h3>
                  <ul>
                      {% for dep_tag, description in dependency_explanations.items() %} {# Use the correct variable name #}
                          <li><strong>{{ dep_tag }}</strong> {{ description }}</li>
@@ -290,12 +297,12 @@
 
     {# Conditionally display Constituency Parse String #}
     {% if constituency_parse_string and selected_parse_type == 'constituency' %}
-        <h2>Constituency Parse (benepar)</h2>
+        <h2>Constituency Parse</h2>
         <pre class="parse-output">{{ constituency_parse_string }}</pre>
 
         {# Conditionally display Constituency Parse Tree #}
         {% if constituency_tree_json %}
-            <h3>Constituency Tree Visualization</h3>
+            <h3>Tree Diagram</h3>
             <!-- Container for D3 Tree -->
             <div id="constituency-tree-container">
                 <svg id="d3-tree-svg"></svg> <!-- SVG element for D3 -->
@@ -383,7 +390,6 @@
         {# Add Dynamic Constituency Label Explanations #}
         {% if constituency_explanations %}
             <div class="explanations-list">
-                 <h3>Constituency Label Explanations</h3>
                  <ul>
                      {% for const_tag, description in constituency_explanations.items() %}
                          <li><strong>{{ const_tag }}</strong> {{ description }}</li>

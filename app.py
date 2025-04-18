@@ -152,7 +152,7 @@ def build_bracketed_string(token):
 @app.route('/', methods=['GET', 'POST'])
 def index():
     dependency_html_output = None
-    dependency_html_output = None
+    dependency_bracketed_string = None # Added for dependency parse string
     constituency_parse_string = None # For benepar raw string output
     constituency_tree_json = None # For benepar JSON tree output
     dependency_explanations = None # Renamed for clarity
@@ -181,6 +181,15 @@ def index():
                         'distance': 120
                     }
                     dependency_html_output = displacy.render(doc, style="dep", page=False, options=options)
+                    # --- Dependency Bracketed String Logic ---
+                    # Find the root(s) of the sentence(s)
+                    roots = [token for token in doc if token.head == token]
+                    if roots:
+                        # Assuming one sentence for simplicity, build from the first root
+                        dependency_bracketed_string = build_bracketed_string(roots[0])
+                    else:
+                        dependency_bracketed_string = "(No root found for dependency parse)"
+                    # --- End Dependency Bracketed String Logic ---
                     # --- Dependency Explanation Logic ---
                     unique_deps = sorted(list(set(token.dep_ for token in doc)))
                     dependency_explanations = {dep: spacy.explain(dep) for dep in unique_deps if spacy.explain(dep)}
@@ -226,6 +235,7 @@ def index():
 
     return render_template('index.html',
                            dependency_html_output=dependency_html_output,
+                           dependency_bracketed_string=dependency_bracketed_string, # Pass dependency string
                            constituency_parse_string=constituency_parse_string, # Pass raw string
                            constituency_tree_json=constituency_tree_json, # Pass JSON tree
                            dependency_explanations=dependency_explanations, # Pass CORRECT dependency explanations
