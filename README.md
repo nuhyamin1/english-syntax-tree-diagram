@@ -1,16 +1,19 @@
 # Syntax Tree Diagram App
 
-This is a Python-based application for visualizing syntax trees. It is designed to help users parse and display syntactic structures, typically for natural language processing, linguistics or educational purposes.
+This is a Python-based application for visualizing syntax trees, offering both a web interface (using Flask) and a standalone desktop application (using PyQt6). It is designed to help users parse and display syntactic structures, typically for natural language processing, linguistics or educational purposes.
 
 ## Features
-- Parse input text and generate syntax trees
-- Visual representation of tree structures
-- User-friendly interface
+- Parse input text and generate both constituency and dependency syntax trees.
+- Visual representation of tree structures (using D3.js for constituency, displaCy for dependency).
+- Explanations (legends) for tags used in the parses.
+- User-friendly interface for both web and desktop versions.
 
 ## Requirements
 - Python 3.x
-- Flask (or another web framework, if used)
-- Any other dependencies listed in `requirements.txt`
+- Dependencies listed in `requirements.txt` (includes Flask, spaCy, benepar, PyQt6, PyQt6-WebEngine, etc.)
+- Required spaCy and benepar models (will be downloaded automatically if not found):
+  - `en_core_web_sm`
+  - `benepar_en3`
 
 ## Getting Started
 1. **Clone the repository**
@@ -26,13 +29,20 @@ This is a Python-based application for visualizing syntax trees. It is designed 
 3. **Install dependencies**
    ```bash
    pip install -r requirements.txt
-   ```
-4. **Run the app**
-   ```bash
-   python app.py
-   ```
-5. **Access the app**
-   Open your browser and go to `http://127.0.0.1:5000/`
+    ```
+4. **Run the Application**
+
+   *   **Web Version (Flask):**
+       ```bash
+       python app.py
+       ```
+       Then, open your browser and go to `http://127.0.0.1:5000/`
+
+   *   **Desktop Version (PyQt6):**
+       ```bash
+       python gui.py
+       ```
+       This will launch the standalone desktop application window.
 
 ## Project Structure
 ```
@@ -40,14 +50,15 @@ Syntax_Tree_Diagram
 ├── .gitignore
 ├── LICENSE
 ├── README.md
-├── app.py
+├── app.py             # Flask web application
+├── gui.py             # PyQt6 desktop application
 ├── requirements.txt
 ├── templates
-│   └── index.html
+│   └── index.html     # HTML template for Flask app
 ```
 
 ## License
 This project is open-source and available under the MIT License.
 
 ---
-*Last updated: 2025-04-16*
+*Last updated: 2025-04-18*
