@@ -80,7 +80,32 @@
         input[type="submit"]:hover {
             background-color: #2980b9;
         }
-        
+
+        .parse-options {
+            display: flex;
+            gap: 15px;
+            /* margin-bottom: 10px; */ /* Removed as margin-top added to container */
+            flex-wrap: wrap; /* Allow wrapping on smaller screens */
+        }
+
+        .parse-options label {
+            cursor: pointer;
+            display: inline-flex; /* Align radio button and text */
+            align-items: center;
+            gap: 5px;
+        }
+
+        .parse-output {
+            background: #f4f4f4;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            font-family: monospace;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            margin-top: 20px;
+            box-shadow: var(--box-shadow);
+        }
         .error { 
             color: var(--error-color);
             font-weight: bold;
@@ -168,23 +193,32 @@
 </head>
 <body>
     <h1>Syntax Tree Viewer (spaCy)</h1>
-    <p>Enter a sentence below to generate its dependency parse tree and visualization.</p>
-    
-    <form method="post">
-        <input type="text" name="sentence" size="60" placeholder="Type your sentence here..." value="{{ input_sentence or '' }}">
-        <input type="submit" value="Parse Sentence">
+    <p>Enter a sentence and select the desired parse type.</p>
+
+    <form method="post" style="flex-direction: column; align-items: flex-start;">
+        <input type="text" name="sentence" size="60" placeholder="Type your sentence here..." value="{{ input_sentence or '' }}" style="width: 100%; box-sizing: border-box;">
+        <div class="parse-options" style="margin-top: 10px;">
+            <label>
+                <input type="radio" name="parse_type" value="dependency" {% if selected_parse_type == 'dependency' %}checked{% endif %}>
+                Dependency Parse
+            </label>
+            <label>
+                <input type="radio" name="parse_type" value="constituency" {% if selected_parse_type == 'constituency' %}checked{% endif %}>
+                Constituency Parse (benepar)
+            </label>
+        </div>
+        <input type="submit" value="Parse Sentence" style="margin-top: 10px;">
     </form>
 
     {% if error %}
         <p class="error">{{ error }}</p>
     {% endif %}
 
-    {% if bracketed_parse %}
-        <h2>Bracketed Parse</h2>
-        <pre style="background:#f4f4f4; padding:10px; border-radius:6px; border:1px solid #e0e0e0; font-family:monospace; white-space:pre-wrap;">{{ bracketed_parse }}</pre>
-    {% endif %}
+    {# Remove the old bracketed_parse block if it exists #}
+    {# {% if bracketed_parse %} ... {% endif %} #}
 
-    {% if dependency_html_output %}
+    {# Conditionally display Dependency Parse #}
+    {% if dependency_html_output and selected_parse_type == 'dependency' %}
         <h2>Dependency Parse</h2>
         <div class="displacy-container">
             {{ dependency_html_output | safe }}
@@ -198,8 +232,14 @@
                          <li><strong>{{ dep_tag }}</strong> {{ description }}</li>
                      {% endfor %}
                  </ul>
-             </div>
+            </div>
         {% endif %}
+    {% endif %}
+
+    {# Conditionally display Constituency Parse #}
+    {% if constituency_parse_string and selected_parse_type == 'constituency' %}
+        <h2>Constituency Parse (benepar)</h2>
+        <pre class="parse-output">{{ constituency_parse_string }}</pre>
     {% endif %}
 
 </body>

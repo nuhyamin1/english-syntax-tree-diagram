@@ -2,14 +2,42 @@
 from flask import Flask, render_template, request
 import spacy
 from spacy import displacy
+import benepar  # Import benepar
 
 # Load the spaCy model (ensure this happens only once)
 try:
     nlp = spacy.load("en_core_web_sm")
 except OSError:
-    print("Downloading 'en_core_web_sm' model...")
+    print("Downloading spaCy 'en_core_web_sm' model...")
     spacy.cli.download("en_core_web_sm")
     nlp = spacy.load("en_core_web_sm")
+
+# Load benepar model and add it to the pipeline
+try:
+    if spacy.__version__.startswith('2'):
+        nlp.add_pipe(benepar.BeneparComponent("benepar_en3"))
+    else:
+        # For spaCy v3, ensure benepar is added correctly
+        # Check benepar docs for the latest recommended way for spaCy v3+
+        # This might involve specifying the component name explicitly
+        if "benepar" not in nlp.pipe_names:
+             nlp.add_pipe("benepar", config={"model": "benepar_en3"})
+except ValueError as e:
+    # Handle cases where the component might already be added or model not found
+    print(f"Benepar component issue: {e}")
+    # Attempt to download benepar model if not found (requires user confirmation ideally)
+    # Consider adding more robust error handling or instructions here
+    try:
+        print("Attempting to download 'benepar_en3' model...")
+        import benepar.cli
+        benepar.cli.download("benepar_en3")
+        # Retry adding the pipe after download
+        if "benepar" not in nlp.pipe_names:
+             nlp.add_pipe("benepar", config={"model": "benepar_en3"})
+    except Exception as download_e:
+        print(f"Failed to download or add benepar model: {download_e}")
+        # Decide how to proceed: maybe disable constituency parsing? Exit?
+        pass # Or raise an error
 
 app = Flask(__name__)
 
@@ -45,13 +73,16 @@ def build_bracketed_string(token):
 @app.route('/', methods=['GET', 'POST'])
 def index():
     dependency_html_output = None
+    constituency_parse_string = None # For benepar output
     explanations = None # Initialize explanations dictionary
     error_message = None
     sentence = ""
-    bracketed_parse = None # Initialize bracketed parse string
+    parse_type = 'dependency' # Default parse type
 
     if request.method == 'POST':
         sentence = request.form.get('sentence', '').strip()
+        parse_type = request.form.get('parse_type', 'dependency') # Get selected parse type
+
         if sentence:
             try:
                 # Process the sentence with spaCy
@@ -62,33 +93,27 @@ def index():
                 explanations = {dep: spacy.explain(dep) for dep in unique_deps if spacy.explain(dep)}
                 # --- End Explanation Logic ---
 
-                # --- Generate Bracketed Parse String using the new function ---
-                roots = [token for token in doc if token.head == token]
-                if roots:
-                    # Assuming a single root for most well-formed sentences
-                    # Build the structure starting from the root
-                    root_structure = build_bracketed_string(roots[0])
-                    # Wrap the entire structure in a (ROOT ...) tag
-                    bracketed_parse = f"(ROOT {root_structure})"
-                    # Optional: Handle multiple roots if necessary (less common)
-                    # if len(roots) > 1:
-                    #    root_structures = [build_bracketed_string(r) for r in roots]
-                    #    bracketed_parse = f"(MULTI_ROOT {' '.join(root_structures)})"
-                else:
-                     bracketed_parse = "(NO_ROOT_FOUND)" # Should generally not happen
-
-                # --- End Bracketed Parse Generation ---
-
-
-                # Generate displacy HTML (same as before)
-                options = {
-                    'compact': True,
-                    'bg': '#fafafa',
-                    'color': '#333333',
-                    'font': 'Arial, sans-serif',
-                    'distance': 120
-                 }
-                dependency_html_output = displacy.render(doc, style="dep", page=False, options=options)
+                # --- Generate Output based on Parse Type ---
+                if parse_type == 'dependency':
+                    # Generate displacy HTML for dependency parse
+                    options = {
+                        'compact': True,
+                        'bg': '#fafafa',
+                        'color': '#333333',
+                        'font': 'Arial, sans-serif',
+                        'distance': 120
+                    }
+                    dependency_html_output = displacy.render(doc, style="dep", page=False, options=options)
+                elif parse_type == 'constituency':
+                    # Generate constituency parse string using benepar
+                    # Ensure the benepar pipe has been added successfully
+                    if 'benepar' in nlp.pipe_names:
+                        sent = list(doc.sents)[0] # Get the first sentence
+                        constituency_parse_string = sent._.parse_string
+                    else:
+                        error_message = "Constituency parsing component (benepar) not loaded correctly."
+                        constituency_parse_string = "Error: benepar not available."
+                # --- End Output Generation ---
 
             except Exception as e:
                 error_message = f"An error occurred during processing: {e}"
@@ -99,10 +124,11 @@ def index():
 
     return render_template('index.html',
                            dependency_html_output=dependency_html_output,
-                           explanations=explanations, # Pass the explanations dict
+                           constituency_parse_string=constituency_parse_string, # Pass constituency string
+                           explanations=explanations,
                            error=error_message,
                            input_sentence=sentence,
-                           bracketed_parse=bracketed_parse) # Pass the new bracketed parse
+                           selected_parse_type=parse_type) # Pass selected type
 
 if __name__ == '__main__':
     app.run(debug=True)

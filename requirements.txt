@@ -1,2 +1,6 @@
 flask
-spacy
+spacy[transformers,lookups]
+benepar
+# Download the benepar model separately, e.g., using:
+# python -m spacy download en_core_web_sm
+# python -m benepar.cli download benepar_en3
