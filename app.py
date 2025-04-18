@@ -42,6 +42,84 @@ except ValueError as e:
 
 app = Flask(__name__)
 
+# --- Constituency Label Explanations ---
+# Based on Penn Treebank tags, but can be customized
+CONSTITUENCY_LABELS = {
+    "S": "Simple declarative clause",
+    "SBAR": "Clause introduced by a subordinating conjunction",
+    "SBARQ": "Direct question introduced by a wh-word or wh-phrase",
+    "SINV": "Inverted declarative sentence",
+    "SQ": "Inverted yes/no question, or main clause of a wh-question",
+    "NP": "Noun Phrase",
+    "VP": "Verb Phrase",
+    "PP": "Prepositional Phrase",
+    "ADJP": "Adjective Phrase",
+    "ADVP": "Adverb Phrase",
+    "QP": "Quantifier Phrase (inside NP)",
+    "WHNP": "Wh-noun Phrase",
+    "WHPP": "Wh-prepositional Phrase",
+    "WHADVP": "Wh-adverb Phrase",
+    "PRN": "Parenthetical",
+    "FRAG": "Fragment",
+    "INTJ": "Interjection",
+    "LST": "List marker",
+    "UCP": "Unlike Coordinated Phrase",
+    "CONJP": "Conjunction Phrase",
+    "NX": "Used within certain complex NPs",
+    "X": "Unknown, uncertain, or unbracketable",
+    "ROOT": "Root of the tree (often implicit, added by some parsers)",
+    # --- Common POS Tags (Penn Treebank Style) ---
+    "CC": "Coordinating conjunction",
+    "CD": "Cardinal number",
+    "DT": "Determiner",
+    "EX": "Existential there",
+    "FW": "Foreign word",
+    "IN": "Preposition or subordinating conjunction",
+    "JJ": "Adjective",
+    "JJR": "Adjective, comparative",
+    "JJS": "Adjective, superlative",
+    "LS": "List item marker",
+    "MD": "Modal",
+    "NN": "Noun, singular or mass",
+    "NNS": "Noun, plural",
+    "NNP": "Proper noun, singular",
+    "NNPS": "Proper noun, plural",
+    "PDT": "Predeterminer",
+    "POS": "Possessive ending",
+    "PRP": "Personal pronoun",
+    "PRP$": "Possessive pronoun",
+    "RB": "Adverb",
+    "RBR": "Adverb, comparative",
+    "RBS": "Adverb, superlative",
+    "RP": "Particle",
+    "SYM": "Symbol",
+    "TO": "to",
+    "UH": "Interjection",
+    "VB": "Verb, base form",
+    "VBD": "Verb, past tense",
+    "VBG": "Verb, gerund or present participle",
+    "VBN": "Verb, past participle",
+    "VBP": "Verb, non-3rd person singular present",
+    "VBZ": "Verb, 3rd person singular present",
+    "WDT": "Wh-determiner",
+    "WP": "Wh-pronoun",
+    "WP$": "Possessive wh-pronoun",
+    "WRB": "Wh-adverb",
+    ".": "Punctuation, sentence end",
+    ",": "Punctuation, comma",
+    ":": "Punctuation, colon",
+    "(": "Punctuation, open parenthesis",
+    ")": "Punctuation, close parenthesis",
+    "\"": "Punctuation, quotation mark",
+    "`": "Punctuation, backtick",
+    "#": "Punctuation, hash",
+    "$": "Punctuation, dollar sign",
+    "''": "Punctuation, closing quotation mark",
+    "``": "Punctuation, opening quotation mark",
+}
+# --- End Constituency Label Explanations ---
+
+
 # --- New Function for Bracketed Parse ---
 def build_bracketed_string(token):
     """
@@ -74,9 +152,11 @@ def build_bracketed_string(token):
 @app.route('/', methods=['GET', 'POST'])
 def index():
     dependency_html_output = None
+    dependency_html_output = None
     constituency_parse_string = None # For benepar raw string output
     constituency_tree_json = None # For benepar JSON tree output
-    explanations = None # Initialize explanations dictionary
+    dependency_explanations = None # Renamed for clarity
+    constituency_explanations = None # For constituency labels
     error_message = None
     sentence = ""
     parse_type = 'dependency' # Default parse type
@@ -90,11 +170,6 @@ def index():
                 # Process the sentence with spaCy
                 doc = nlp(sentence)
 
-                # --- Add Explanation Logic --- (Same as before)
-                unique_deps = sorted(list(set(token.dep_ for token in doc)))
-                explanations = {dep: spacy.explain(dep) for dep in unique_deps if spacy.explain(dep)}
-                # --- End Explanation Logic ---
-
                 # --- Generate Output based on Parse Type ---
                 if parse_type == 'dependency':
                     # Generate displacy HTML for dependency parse
@@ -106,6 +181,10 @@ def index():
                         'distance': 120
                     }
                     dependency_html_output = displacy.render(doc, style="dep", page=False, options=options)
+                    # --- Dependency Explanation Logic ---
+                    unique_deps = sorted(list(set(token.dep_ for token in doc)))
+                    dependency_explanations = {dep: spacy.explain(dep) for dep in unique_deps if spacy.explain(dep)}
+                    # --- End Dependency Explanation Logic ---
                 elif parse_type == 'constituency':
                     # Generate constituency parse string using benepar
                     # Ensure the benepar pipe has been added successfully
@@ -115,16 +194,27 @@ def index():
                         # --- Convert constituency string to NLTK Tree and then to JSON ---
                         try:
                             nltk_tree = nltk.Tree.fromstring(constituency_parse_string)
-                            constituency_tree_json = tree_to_json(nltk_tree)
+                            constituency_tree_json = tree_to_json(nltk_tree) # Convert to JSON for D3
+                            # --- Constituency Explanation Logic ---
+                            if nltk_tree:
+                                unique_const_labels = get_labels_from_tree(nltk_tree)
+                                constituency_explanations = {
+                                    label: CONSTITUENCY_LABELS.get(label, "No description available.")
+                                    for label in sorted(list(unique_const_labels))
+                                    if label in CONSTITUENCY_LABELS # Only include known labels
+                                }
+                            # --- End Constituency Explanation Logic ---
                         except Exception as tree_e:
                             error_message = f"Error parsing constituency tree: {tree_e}"
                             print(f"Error parsing tree '{constituency_parse_string}': {tree_e}")
                             constituency_tree_json = None # Ensure it's None on error
+                            constituency_explanations = None
                         # --- End Tree Conversion ---
-                    else:
+                    else: # This is the correct 'else' for the 'if benepar in nlp.pipe_names'
                         error_message = "Constituency parsing component (benepar) not loaded correctly."
                         constituency_parse_string = "Error: benepar not available."
                         constituency_tree_json = None
+                        constituency_explanations = None
                 # --- End Output Generation ---
 
             except Exception as e:
@@ -138,14 +228,27 @@ def index():
                            dependency_html_output=dependency_html_output,
                            constituency_parse_string=constituency_parse_string, # Pass raw string
                            constituency_tree_json=constituency_tree_json, # Pass JSON tree
-                           explanations=explanations,
+                           dependency_explanations=dependency_explanations, # Pass CORRECT dependency explanations
+                           constituency_explanations=constituency_explanations, # Pass constituency explanations
                            error=error_message,
                            input_sentence=sentence,
                            selected_parse_type=parse_type) # Pass selected type
 
-# --- Function to convert NLTK Tree to JSON --- 
+# --- Function to extract unique labels from NLTK Tree ---
+def get_labels_from_tree(tree):
+    """Recursively extracts all unique node labels from an NLTK Tree."""
+    labels = set()
+    if not isinstance(tree, str): # Ignore leaf strings (words)
+        labels.add(tree.label())
+        for child in tree:
+            labels.update(get_labels_from_tree(child))
+    return labels
+# --- End get_labels_from_tree function ---
+
+
+# --- Function to convert NLTK Tree to JSON ---
 def tree_to_json(tree):
-    """Converts an NLTK Tree object to a JSON-serializable dictionary."""
+    """Converts an NLTK Tree object to a JSON-serializable dictionary for D3."""
     if isinstance(tree, str):
         # This case might happen for leaf nodes if not handled carefully
         # Depending on how fromstring parses, might need adjustment

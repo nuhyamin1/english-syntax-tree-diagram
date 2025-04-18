@@ -276,11 +276,11 @@
             {{ dependency_html_output | safe }}
         </div>
 
-        {% if explanations %}
+        {% if dependency_explanations %} {# Use the correct variable name #}
             <div class="explanations-list">
                  <h3>Dependency Label Explanations</h3>
                  <ul>
-                     {% for dep_tag, description in explanations.items() %}
+                     {% for dep_tag, description in dependency_explanations.items() %} {# Use the correct variable name #}
                          <li><strong>{{ dep_tag }}</strong> {{ description }}</li>
                      {% endfor %}
                  </ul>
@@ -379,7 +379,19 @@
                 }
             </script>
         {% endif %}
-    {% endif %}
+
+        {# Add Dynamic Constituency Label Explanations #}
+        {% if constituency_explanations %}
+            <div class="explanations-list">
+                 <h3>Constituency Label Explanations</h3>
+                 <ul>
+                     {% for const_tag, description in constituency_explanations.items() %}
+                         <li><strong>{{ const_tag }}</strong> {{ description }}</li>
+                     {% endfor %}
+                 </ul>
+            </div>
+        {% endif %}
+    {% endif %} {# End of constituency_parse_string check #}
 
 </body>
 </html>
