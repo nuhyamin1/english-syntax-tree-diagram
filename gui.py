@@ -433,6 +433,59 @@ class SyntaxTreeApp(QMainWindow):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
+
+    # --- Apply Stylesheet ---
+    stylesheet = """
+        QMainWindow {
+            background-color: #f0f0f0; /* Light grey background */
+        }
+        QWidget#central_widget { /* Target the central widget specifically */
+            background-color: #f0f0f0;
+            padding: 15px;
+        }
+        QLabel {
+            font-size: 14px;
+            color: #333;
+            margin-bottom: 5px;
+        }
+        QTextEdit {
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            padding: 8px;
+            font-size: 14px;
+            background-color: white;
+        }
+        QTextEdit#output_display { /* Specific style for read-only output */
+             background-color: #e9e9e9;
+        }
+        QPushButton {
+            background-color: #007bff; /* Blue background */
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            font-size: 14px;
+            margin-top: 10px; /* Add space above buttons */
+        }
+        QPushButton:hover {
+            background-color: #0056b3; /* Darker blue on hover */
+        }
+        QPushButton:pressed {
+            background-color: #004085; /* Even darker blue when pressed */
+        }
+        QWebEngineView {
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            margin-top: 10px; /* Add space above web view */
+        }
+    """
+    app.setStyleSheet(stylesheet)
+    # --- End Stylesheet ---
+
     window = SyntaxTreeApp()
+    # Set object name for the central widget to apply specific styles
+    window.central_widget.setObjectName("central_widget")
+    window.output_display.setObjectName("output_display") # Name the output display
+
     window.show()
     sys.exit(app.exec())
